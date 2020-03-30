@@ -4,6 +4,10 @@ import android.graphics.Canvas;
 import android.view.SurfaceHolder;
 
 class GameLoop extends Thread {
+
+    private static final double MAX_UPS = 30.0;
+    private static final double UPS_PERIOD = 1E+3 / MAX_UPS;
+
     private boolean isRunning = false;
     private SurfaceHolder surfaceHolder;
     private Game game;
@@ -27,7 +31,6 @@ class GameLoop extends Thread {
     public void startLoop() {
         isRunning = true;
         start();
-
     }
 
     @Override
@@ -55,6 +58,16 @@ class GameLoop extends Thread {
             }
             updateCount++;
             frameCount++;
+
+            elapsedTime = System.currentTimeMillis() - startTime;
+            sleepTime = (long) (updateCount * UPS_PERIOD - elapsedTime);
+            if(sleepTime > 0){
+                try {
+                    sleep(sleepTime);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
 
             elapsedTime = System.currentTimeMillis() - startTime;
             if(elapsedTime >= 1000){
