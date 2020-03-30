@@ -5,7 +5,7 @@ import android.view.SurfaceHolder;
 
 class GameLoop extends Thread {
 
-    private static final double MAX_UPS = 30.0;
+    private static final double MAX_UPS = 60.0;
     private static final double UPS_PERIOD = 1E+3 / MAX_UPS;
 
     private boolean isRunning = false;
@@ -44,21 +44,30 @@ class GameLoop extends Thread {
         long elapsedTime;
         long sleepTime;
 
-        Canvas canvas;
+        Canvas canvas = null;
         startTime = System.currentTimeMillis();
         while (isRunning){
 
             try{
                 canvas = surfaceHolder.lockCanvas();
-                game.update();
-                game.draw(canvas);
-                surfaceHolder.unlockCanvasAndPost(canvas);
+                synchronized (surfaceHolder){
+                    game.update();
+                    updateCount++;
+
+                    game.draw(canvas);
+                }
             }catch (IllegalArgumentException e){
                 e.printStackTrace();
+            } finally {
+                if(canvas != null){
+                    try{
+                        surfaceHolder.unlockCanvasAndPost(canvas);
+                        frameCount++;
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+                }
             }
-            updateCount++;
-            frameCount++;
-
             elapsedTime = System.currentTimeMillis() - startTime;
             sleepTime = (long) (updateCount * UPS_PERIOD - elapsedTime);
             if(sleepTime > 0){
@@ -67,6 +76,14 @@ class GameLoop extends Thread {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+            }
+
+            //Skip frames to keep up with target UPS
+            while (sleepTime < 0 && updateCount < MAX_UPS - 1){
+                game.update();
+                updateCount++;
+                elapsedTime = System.currentTimeMillis() - startTime;
+                sleepTime = (long) (updateCount * UPS_PERIOD - elapsedTime);
             }
 
             elapsedTime = System.currentTimeMillis() - startTime;
